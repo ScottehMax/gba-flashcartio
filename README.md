@@ -4,6 +4,8 @@ A Game Boy Advance (GBA) C library to access the SD card of the following flashc
 - EverDrive GBA X5 / Mini
 - EZ Flash Omega / OmegaDE
 
+> EverDrive GBA Pro and EZ Flash Air are not supported (pull requests are welcome!).
+
 The flashcart type is autodetected and FAT partitions are supported via [ELM-ChaN's FatFs library](http://elm-chan.org/fsw/ff).
 
 - **Only read operations are implemented in FatFs**.
