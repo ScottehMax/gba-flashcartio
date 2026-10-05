@@ -2,17 +2,21 @@
 
 A Game Boy Advance (GBA) C library to access the SD card of the following flashcarts:
 - EverDrive GBA X5 / Mini
+- EverDrive GBA Pro
 - EZ Flash Omega / OmegaDE
 
-> EverDrive GBA Pro and EZ Flash Air are not supported (pull requests are welcome!).
+> EZ Flash Air is not supported (pull requests are welcome!).
 
 The flashcart type is autodetected and FAT partitions are supported via [ELM-ChaN's FatFs library](http://elm-chan.org/fsw/ff).
 
 - **Only read operations are implemented in FatFs**.
-- It reads using either **DMA3** or **DMA1**.
-- While reading, flashcarts make part of the ROM inaccessible during the operation (*EverDrive* disables the last 16 MB, and *EZ Flash* disables all ROM space). To prevent issues, by default, interrupts are briefly disabled (`REG_IME = 0`).
-- **EverDrive** notes:
+- It uses either **DMA3** or **DMA1** for data copies, or regular copies when DMA is disabled.
+- While reading, flashcarts make part of the ROM inaccessible during the operation (*EverDrive X5 / Mini* disables the last 16 MB, *EverDrive Pro* maps FIFO registers into ROM space, and *EZ Flash* disables all ROM space). To prevent issues, by default, interrupts are briefly disabled (`REG_IME = 0`).
+- **EverDrive X5 / Mini** notes:
   * Since the last 16 MB of ROM are unavailable while using the SD card, make sure your linker script places these functions in the first 16 MB of ROM or in RAM.
+- **EverDrive Pro** notes:
+  * Uses ~1 KB of EWRAM for a transfer buffer, plus the SD access functions.
+  * ROM addresses `08000080..0800009F` expose the cartridge interface during SD access. Avoid reading this part of the header until the operation finishes.
 - **EZ Flash** notes:
   * Since ROM is unavailable while using the SD card, ~1 KB of static EWRAM will be taken by some functions.
   * The _EZ Flash Definitive Edition_ works great out of the box, but in the original one:
@@ -46,6 +50,8 @@ In `lib/sys.h`:
 - `FLASHCARTIO_ED_ENABLE` (default=`1`): (*EverDrive*) Set to `0` to disable _EverDrive_ support.
 - `FLASHCARTIO_ED_SAVE_TYPE` (default=`ED_SAVE_TYPE_SRM`): (*EverDrive*) Set your game's save type manually here (one of `ED_SAVE_TYPE_EEP`, `ED_SAVE_TYPE_SRM`, `ED_SAVE_TYPE_FLA64`, `ED_SAVE_TYPE_FLA128`). Unfortunately, this is required, since initializing the registers overwrites ROM configuration that is usually autodetected otherwise.
 - `FLASHCARTIO_ED_DISABLE_IRQ` (default=`1`): (*EverDrive*) If you are absolutely sure that your interrupt code doesn't access the last 16 MB of ROM and you won't be calling `SoftReset` in the middle of a read (when `flashcartio_is_reading` is `true`), you can avoid disabling interrupts by setting this option to `0`.
+- `FLASHCARTIO_EDPRO_ENABLE` (default=`1`): (*EverDrive Pro*) Set to `0` to disable _EverDrive Pro_ support. Include `lib/everdrivegbapro/io_edpro.c` in your build when enabled.
+- `FLASHCARTIO_EDPRO_DISABLE_IRQ` (default=`1`): (*EverDrive Pro*) If you are absolutely sure that your interrupt code doesn't access ROM at all and you won't be calling `SoftReset` in the middle of a read (when `flashcartio_is_reading` is `true`), you can avoid disabling interrupts by setting this option to `0`.
 - `FLASHCARTIO_EZFO_ENABLE` (default=`1`): (*EZ Flash*) Set to `0` to disable _EZ Flash_ support.
 - `FLASHCARTIO_EZFO_DISABLE_IRQ` (default=`1`): (*EZ Flash*) If you are absolutely sure that your interrupt code doesn't access ROM at all and you won't be calling `SoftReset` in the middle of a read (when `flashcartio_is_reading` is `true`), you can avoid disabling interrupts by setting this option to `0`.
 

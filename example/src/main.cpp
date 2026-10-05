@@ -17,7 +17,7 @@ std::vector<FILINFO> readDir(std::string path);
 void log(std::string text);
 void halt(std::string text);
 u16 waitFor(u16 key);
-const std::string names[] = {"-", "Everdrive", "EZ Flash"};
+const std::string names[] = {"-", "Everdrive", "EZ Flash", "Everdrive Pro"};
 
 void init() {
   REG_DISPCNT = DCNT_MODE0 | DCNT_BG0;

@@ -134,7 +134,7 @@ TITLE		:= $(PROJ)
 LIBS		:= -ltonc
 
 BUILD		:= build
-SRCDIRS		:= src ../lib ../lib/fatfs ../lib/everdrivegbax5 ../lib/ezflashomega
+SRCDIRS		:= src ../lib ../lib/fatfs ../lib/everdrivegbax5 ../lib/everdrivegbapro ../lib/ezflashomega
 DATADIRS	:= data
 INCDIRS		:= src ../lib ../lib/fatfs ../lib/everdrivegbax5 ../lib/ezflashomega
 LIBDIRS		:= $(TONCLIB)

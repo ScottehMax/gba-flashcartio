@@ -33,6 +33,16 @@
 #define FLASHCARTIO_ED_DISABLE_IRQ 1
 #endif
 
+// (EverDrive Pro) Enable EverDrive GBA Pro support
+#ifndef FLASHCARTIO_EDPRO_ENABLE
+#define FLASHCARTIO_EDPRO_ENABLE 1
+#endif
+
+// (EverDrive Pro) Disables interrupts while the FIFO replaces ROM
+#ifndef FLASHCARTIO_EDPRO_DISABLE_IRQ
+#define FLASHCARTIO_EDPRO_DISABLE_IRQ 1
+#endif
+
 // (EZ Flash) Enable EZ Flash support
 #ifndef FLASHCARTIO_EZFO_ENABLE
 #define FLASHCARTIO_EZFO_ENABLE 1

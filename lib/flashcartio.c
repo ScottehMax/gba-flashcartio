@@ -2,6 +2,10 @@
 
 #include "flashcartio.h"
 
+#if FLASHCARTIO_EDPRO_ENABLE != 0
+#include "everdrivegbapro/io_edpro.h"
+#endif
+
 #if FLASHCARTIO_ED_ENABLE != 0
 #include "everdrivegbax5/disk.h"
 #include "everdrivegbax5/everdrive.h"
@@ -15,6 +19,21 @@ ActiveFlashcart active_flashcart = NO_FLASHCART;
 volatile bool flashcartio_is_reading = false;
 
 bool flashcartio_activate(void) {
+  if (flashcartio_is_reading)
+    return false;
+  active_flashcart = NO_FLASHCART;
+#if FLASHCARTIO_EDPRO_ENABLE != 0
+  // Check the Pro before other cart probes change cartridge registers.
+  EdProDetection detection = edpro_detect();
+  if (detection == EDPRO_DETECT_ERROR)
+    return false;
+  if (detection == EDPRO_FOUND) {
+    if (!edpro_init())
+      return false;
+    active_flashcart = EVERDRIVE_GBA_PRO;
+    return true;
+  }
+#endif
 #if FLASHCARTIO_ED_ENABLE != 0
 
 #if FLASHCARTIO_ED_DISABLE_IRQ != 0
@@ -44,6 +63,9 @@ bool flashcartio_activate(void) {
 
     return true;
   }
+#if FLASHCARTIO_ED_DISABLE_IRQ != 0
+  REG_IME = ime;
+#endif
 #endif
 
 #if FLASHCARTIO_EZFO_ENABLE != 0
@@ -58,7 +80,17 @@ bool flashcartio_activate(void) {
 }
 
 bool flashcartio_read_sector(u32 sector, u8* destination, u16 count) {
+  if (flashcartio_is_reading)
+    return false;
   switch (active_flashcart) {
+#if FLASHCARTIO_EDPRO_ENABLE != 0
+    case EVERDRIVE_GBA_PRO: {
+      flashcartio_is_reading = true;
+      bool success = edpro_read_sector(sector, destination, count);
+      flashcartio_is_reading = false;
+      return success;
+    }
+#endif
 #if FLASHCARTIO_ED_ENABLE != 0
     case EVERDRIVE_GBA_X5: {
 #if FLASHCARTIO_ED_DISABLE_IRQ != 0
