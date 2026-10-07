@@ -89,7 +89,7 @@ EdProDetection EWRAM_CODE edpro_detect(void) {
 }
 
 // Keep every instruction and literal in RAM until AA restores the ROM.
-static bool EWRAM_CODE transfer(u32 sector, u16 count, bool initialize) {
+static bool EWRAM_CODE transfer(u32 sector, u16 count, bool initialize, bool writing) {
   if (protocol_error)
     return false;
 #if FLASHCARTIO_EDPRO_DISABLE_IRQ != 0
@@ -114,14 +114,35 @@ static bool EWRAM_CODE transfer(u32 sector, u16 count, bool initialize) {
       goto done;
   }
   if (!count) {
-    success = true;
+    success = result == 0;
     goto done;
   }
-  command(0xC1);
+  command(writing ? 0xC2 : 0xC1);
   for (u32 i = 0; i < 4; i++)
     FIFO = (sector >> (i * 8)) & 0xFF;
   for (u32 i = 0; i < 4; i++)
     FIFO = ((u32)count >> (i * 8)) & 0xFF;
+  if (writing) {
+    // Writes use count=1. A failed write is never retried.
+    if (!receive(&result, 1, &budget) || result || !(STATUS & FIFO_EMPTY)) {
+      protocol_error = true;
+      goto done;
+    }
+    for (u32 i = 0; i < 512; i++)
+      FIFO = buffer[i];
+    // Reject unsolicited bytes, then request completion status immediately.
+    if (!(STATUS & FIFO_EMPTY)) {
+      protocol_error = true;
+      goto done;
+    }
+    budget = POLL_LIMIT; // Completion gets its own full timeout budget.
+    if (!status(&result, &budget) || result) {
+      protocol_error = true;
+      goto done;
+    }
+    success = true;
+    goto done;
+  }
   for (u16 i = 0; i < count; i++) {
     if (!receive(&result, 1, &budget)) {
       protocol_error = true;
@@ -157,7 +178,7 @@ done:
 }
 
 bool edpro_init(void) {
-  initialized = detected && transfer(0, 0, true);
+  initialized = detected && transfer(0, 0, true, false);
   return initialized;
 }
 
@@ -186,7 +207,7 @@ bool edpro_read_sector(u32 sector, u8* destination, u16 count) {
     return false;
   while (count) {
     u16 blocks = count > 2 ? 2 : count;
-    if (!transfer(sector, blocks, false))
+    if (!transfer(sector, blocks, false, false))
       return false;
     copy_sector(destination, blocks * 512);
     destination += blocks * 512;
@@ -194,4 +215,29 @@ bool edpro_read_sector(u32 sector, u8* destination, u16 count) {
     count -= blocks;
   }
   return true;
+}
+
+bool edpro_write_sector(u32 sector, const u8* source, u16 count) {
+  if (!initialized || protocol_error)
+    return false;
+  if (!count)
+    return true;
+  if (!source || sector > 0xFFFFFFFF - ((u32)count - 1))
+    return false;
+  while (count--) {
+    // Copy before AB: source may be unaligned or point into cartridge ROM.
+    for (u32 i = 0; i < 512; i++)
+      buffer[i] = source[i];
+    if (!transfer(sector, 1, false, true))
+      return false;
+    source += 512;
+    sector++;
+  }
+  return true;
+}
+
+bool edpro_sync(void) {
+  // Every write waits for its completion status. Check the driver is healthy;
+  // no host-side write queue remains to flush and no new command is necessary.
+  return initialized && !protocol_error && !needs_init;
 }

@@ -18,6 +18,42 @@
 ActiveFlashcart active_flashcart = NO_FLASHCART;
 volatile bool flashcartio_is_reading = false;
 
+bool flashcartio_can_write(void) {
+#if FLASHCARTIO_EDPRO_ENABLE != 0
+  return active_flashcart == EVERDRIVE_GBA_PRO;
+#else
+  return false;
+#endif
+}
+
+bool flashcartio_write_sector(u32 sector, const u8* source, u16 count) {
+  if (flashcartio_is_reading)
+    return false;
+#if FLASHCARTIO_EDPRO_ENABLE != 0
+  if (active_flashcart == EVERDRIVE_GBA_PRO) {
+    flashcartio_is_reading = true;
+    bool success = edpro_write_sector(sector, source, count);
+    flashcartio_is_reading = false;
+    return success;
+  }
+#else
+  (void)sector;
+  (void)source;
+  (void)count;
+#endif
+  return false;
+}
+
+bool flashcartio_sync(void) {
+  if (flashcartio_is_reading)
+    return false;
+#if FLASHCARTIO_EDPRO_ENABLE != 0
+  if (active_flashcart == EVERDRIVE_GBA_PRO)
+    return edpro_sync();
+#endif
+  return active_flashcart != NO_FLASHCART;
+}
+
 bool flashcartio_activate(void) {
   if (flashcartio_is_reading)
     return false;
